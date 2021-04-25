@@ -1,0 +1,64 @@
+<!--个人信息-->
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8">
+    <title>个人信息</title>
+    <link rel="stylesheet" href="../../layui/css/layui.css" th:href="@{/layui/css/layui.css}">
+</head>
+<style>
+    .myTableCell-one{
+        width:15% ;
+        background-color:#cfcfcf;
+        text-align: center;
+    }
+    .myTableCell-two{
+        width:35% ;
+        text-align: left;
+        padding: 10px;
+    }
+</style>
+<body>
+
+
+<fieldset class="layui-elem-field " style="margin-top: 50px;margin-left: 250px;margin-right: 250px;border-width: 1.3px">
+    <legend>个人信息</legend>
+    <div class="layui-tab layui-tab-card" style=" padding:20px 50px;margin-left: 100px;margin-right: 100px;margin-bottom: 50px" >
+        <table  class="layui-table">
+            <tr>
+                <td class="myTableCell-one">学号</td> <td th:text="${student.getStudentId()}" class="myTableCell-two">小明</td>
+                <td class="myTableCell-one">姓名</td> <td th:text="${student.getStudentName()}" class="myTableCell-two">20170001</td>
+            </tr>
+            <tr>
+                <td class="myTableCell-one">性别</td> <td th:text="${student.getStudentSex()}" class="myTableCell-two">男</td>
+                <td class="myTableCell-one">出生日期</td> <td th:text="${student.getStudentBirthday()}" class="myTableCell-two">1989-05-06</td>
+            </tr>
+
+            <tr>
+                <td class="myTableCell-one">专业</td> <td th:text="${student.getStudentMajor()}" class="myTableCell-two">计算机科学与技术</td>
+                <td class="myTableCell-one">入学时间</td> <td th:text="${student.getStudentSignYear()}" class="myTableCell-two">教授</td>
+            </tr>
+
+            <tr>
+                <td class="myTableCell-one">民族</td> <td th:text="${student.getStudentNational()}" class="myTableCell-two">汉族</td>
+                <td class="myTableCell-one">专业</td> <td th:text="${student.getStudentMajor()}" class="myTableCell-two">中共党员</td>
+            </tr>
+<!--
+            <tr>
+                <td class="myTableCell-one">职称</td> <td class="myTableCell-two">2017</td>
+                <td class="myTableCell-one">学历</td> <td class="myTableCell-two">博士</td>
+            </tr>
+-->
+        </table>
+    </div>
+</fieldset>
+
+<script src="../../layui/layui.js" th:src="@{/layui/layui.js}"></script>
+<script>
+    layui.use(['element','form'],function(){
+        var element = layui.element;
+        var form = layui.form;
+    });
+</script>
+</body>
+</html>

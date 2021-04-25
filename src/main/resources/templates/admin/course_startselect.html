@@ -1,0 +1,156 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns="">
+<head>
+    <meta http-equiv="content-type" content="text/html" charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <title>start select</title>
+    <style type="text/css">
+        .align-center{
+            margin:0 auto; /* 居中 这个是必须的，，其它的属性非必须 */
+            width:500px; /* 给个宽度 顶到浏览器的两边就看不出居中效果了 */
+            text-align:center; /* 文字等内容居中 */
+        }
+    </style>
+
+<!--    <base th:href="${#request.getContextPath()}+'/'">-->
+
+    <!-- Bootstrap core CSS -->
+    <link href="../../dist/css/bootstrap.min.css"  th:href="@{/webjars/bootstrap/4.3.0/css/bootstrap.css}" rel="stylesheet">
+    <!-- Custom styles for this template -->
+    <link href="signin.css" rel="stylesheet" th:href="@{/asserts/css/signin.css}">
+</head>
+
+<div class="align-center">
+
+    <p class="html-editor-align-center" ></p>
+
+    <h1 class="h3 mb-3 font-weight-normal" th:text="'当前选课状态状态:  '+${SelectInfo}"></h1>
+    <h1 class="h3 mb-3 font-weight-normal" th:text="'当前录入成绩状态:  '+${InputInfo}"></h1>
+
+
+    <h1 class="h3 mb-3 font-weight-normal">设定选课状态</h1>
+
+    <button class="btn btn-info btn-primary btn-block" onclick="StatrSelect()">开始选课</button>
+    <button class="btn btn-info btn-secondary btn-block" onclick="EndSelect()" >停止选课</button>
+    <button class="btn btn-info btn-primary btn-block" onclick="StartInput()">开始录入成绩</button>
+    <button class="btn btn-info btn-secondary btn-block" onclick="EndInput()">停止录入成绩</button>
+
+</div>
+<script src="" th:src="@{/webjars/jquery/3.4.1/jquery.js}"> </script>
+<script src="../../layui/layui.js" th:src="@{/asserts/js/layer.js}"></script>
+<script>
+
+    function StatrSelect() {
+        $.ajax({
+            url: "Admin/StartSelect",
+            type: "POST",
+            data: {
+                flag: 1
+            },
+            dataType: "json",
+            success: function (data) {
+                console.log(data);
+                var newData = JSON.stringify(data);
+                console.log(newData);
+                window.location.reload()
+                if (data.code == 1) {
+                    layer.msg(data.message, {
+                        icon: 5,
+                        offset: ['50%'],
+                        time: 1000
+                    }, function () {
+                        window.location.reload()
+                    })
+
+                }
+            }
+        })
+    }
+        function EndSelect() {
+
+            $.ajax({
+                url: "Admin/EndSelect",
+                type: "POST",
+                data: {
+                    flag: 1
+                },
+                dataType: "json",
+                success: function (data) {
+                    console.log(data);
+                    var newData = JSON.stringify(data);
+                    console.log(newData);
+                    window.location.reload()
+                    if (data.code == 1) {
+                        layer.msg(data.message, {
+                            icon: 5,
+                            offset: ['50%'],
+                            time: 1000
+                        }, function () {
+                            window.location.reload()
+                        })
+                    }
+                }
+            })
+        }
+
+            function StartInput() {
+
+                $.ajax({
+                    url: "Admin/StartInput",
+                    type: "POST",
+                    data: {
+                        flag: 1
+                    },
+                    dataType: "json",
+                    success: function (data) {
+                        console.log(data);
+                        var newData = JSON.stringify(data);
+                        console.log(newData);
+                        window.location.reload()
+                        if (data.code == 1) {
+                            layer.msg(data.message, {
+                                icon: 5,
+                                offset: ['50%'],
+                                time: 1000
+                            }, function () {
+                                window.location.reload()
+                            })
+                        }
+                    }
+                })
+            }
+
+                function EndInput() {
+
+                    $.ajax({
+                        url: "Admin/EndInput",
+                        type: "POST",
+                        data: {
+                            flag: 1
+                        },
+                        dataType: "json",
+                        success: function (data) {
+                            console.log(data);
+                            var newData = JSON.stringify(data);
+                            console.log(newData);
+                            window.location.reload()
+                            if (data.code == 1) {
+                                layer.msg(data.message, {
+                                    icon: 5,
+                                    offset: ['50%'],
+                                    time: 1000
+                                }, function () {
+                                    window.location.reload()
+                                })
+                            }
+                        }
+                    });
+                }
+
+</script>
+
+
+</body>
+</html>

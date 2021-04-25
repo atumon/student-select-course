@@ -1,0 +1,126 @@
+<!--学生选课-->
+<!DOCTYPE html >
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>学生选课</title>
+    <link rel="stylesheet" href="../../layui/css/layui.css" th:href="@{/layui/css/layui.css}">
+</head>
+<body>
+<fieldset class="layui-elem-field layui-field-title" style="margin-top: 20px;" >
+    <legend>学生选课</legend>
+</fieldset>
+
+    <table  id="SelectCourse" lay-filter="SelectCourse" ></table>
+
+<div style="display: none" id="tool">
+    <a class="layui-btn layui-btn-xs" lay-event="select">选择</a>
+    <a class="layui-btn layui-btn-danger layui-btn-xs" lay-event="del">退选</a>
+</div>
+
+
+<script src="../../layui/layui.js" th:src="@{/layui/layui.js}"></script>
+<script th:src="@{/webjars/jquery/3.4.1/jquery.js}"></script>
+<script>
+
+
+
+    layui.use(['element','form','table'],function() {
+        var element = layui.element;
+        var form = layui.form;
+        var table = layui.table;
+
+        table.render({
+            elem: '#SelectCourse'
+            , id: 'SelectCourse'
+            , url: 'Course/information'
+            , cellMinWidth: 80 //全局定义常规单元格的最小宽度，layui 2.2.1 新增
+            , cols: [
+                [
+                   // {field: 'id', title: 'ID', type: 'checkbox', width: 120, sort: true, fixed: 'left', align: 'center'}
+                     {field: 'CourseId', title: '课程号',  align: 'center'}
+                    , {field: 'CourseName', title: '课程名',  edit: 'text', align: 'center'}
+                    , {field: 'TeacherName', title: '教师号',  edit: 'text', align: 'center'}
+                    , {field: 'CourseAddress', title: '地址',  align: 'center'}
+                    , {field: 'WeekInfo', title: '时间',  align: 'center'}
+                    , {field: 'CoursePoint', title: '学分',  align: 'center'}
+                    , {field: 'CourseCapacity', title: '课容量',  align: 'center'}
+                    , {field: 'leftCourseNumber', title: '余量',  align: 'center'}
+                    , {field: 'ifSelect', title: '是否已选',  align: 'center'}
+                    , {fixed: 'right', title: '操作',  align: 'center', toolbar: '#tool'}
+                ]
+            ]
+            ,page: 'true'
+        });
+
+        table.on('tool(SelectCourse)', function (obj) {
+            var data = obj.data;
+            console.log(data);
+            console.log(obj);
+            if (obj.event == "select") {
+                $.ajax({
+                    url: "student/SelectCourse",
+                    type: "POST",
+                    data: {'CourseId': data.CourseId},
+                    dataType: "json",
+
+                    success: function (data) {
+                        console.log(data);
+                        var newData = JSON.stringify(data);
+                        console.log(data);
+                        if (data.channelCode == 1) {
+                            layer.msg(data.message, {
+                                icon: 6,
+                                offset: ['50%'],
+                                time: 1000
+                            }, function () {
+                                table.reload('SelectCourse');
+                            });
+                        }else{
+                            layer.msg(data.message, {
+                                icon: 5,
+                                offset: ['50%'],
+                                time: 1000
+                            }, function () {
+                                table.reload('SelectCourse');
+                            });
+                        }
+                    }
+                })
+            } else {
+                $.ajax({
+                    url: "student/QuitCourse",
+                    type: "POST",
+                    data: {'CourseId': data.CourseId},
+                    dataType: "json",
+                    success: function (data) {
+                        console.log(data);
+                        var newData = JSON.stringify(data);
+                        console.log(newData);
+                        if (data.channelCode == 1) {
+                            layer.msg(data.message, {
+                                icon: 6,
+                                offset: ['50%'],
+                                time: 1000
+                            }, function () {
+                                table.reload('SelectCourse');
+                            });
+                        }else {
+                            layer.msg(data.message, {
+                                icon: 5,
+                                offset: ['50%'],
+                                time: 1000
+                            }, function () {
+                                table.reload('SelectCourse');
+                            });
+                        }
+                    }
+                });
+            }
+        });
+    });
+
+
+</script>
+</body>
+</html>
