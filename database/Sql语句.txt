@@ -1,0 +1,908 @@
+﻿/*创建表部分*/
+
+drop table if exists Course;
+
+drop table if exists Department;
+
+drop table if exists SelectCourse;
+
+drop table if exists Student;
+
+drop table if exists Teacher;
+
+drop table if exists Admin;
+
+drop table if exists CourseTime;
+
+drop table if exists State;
+
+/*==============================================================*/
+/* Table: Course                                                */
+/*==============================================================*/
+create table Course
+(
+   CourseId            char(7) not null,
+   CourseName          varchar(40) not null,
+   CourseCapacity          int unsigned not null default 0,
+   CoursePoint         numeric(3,1) unsigned not null default 0.0,
+   CourseDept          int not null,
+   CourseAddress     varchar(40) not null,
+   CourseTeacherId   char(5) not null,
+   primary key (CourseId)
+);
+
+/*==============================================================*/
+/* Table: Department                                            */
+/*==============================================================*/
+create table Department
+(
+   DepartmentNo   int not null,
+   DepartmentName      varchar(40) not null,
+   primary key (DepartmentNo)
+);
+
+/*==============================================================*/
+/* Table: SelectCourse                                         */
+/*==============================================================*/
+create table SelectCourse
+(
+   SelectCourseSid              char(12) not null,
+   SelectCourseCid             char(7) not null,
+   SelectCourseScore          int,
+   primary key (SelectCourseSid, SelectCourseCid)
+);
+
+/*==============================================================*/
+/* Table: Student                                               */
+/*==============================================================*/
+create table Student
+(
+   StudentId           char(12) not null,
+   StudentName         varchar(20) not null,
+   StudentDept         int not null,
+   StudentSex          char(1) not null,
+   StudentPassword     varchar(18) BINARY not null default '666666',
+   StudentNational     varchar(4),
+   StudentSignYear     numeric(4,0),
+   StudentMajor     varchar(20),
+   StudentBirthday     date,
+   primary key (StudentId)
+);
+
+/*==============================================================*/
+/* Table: Teacher                                               */
+/*==============================================================*/
+create table Teacher
+(
+   TeacherId           char(5) not null,
+   TeacherName         varchar(20) not null,
+   TeacherPhone        char(11),
+   TeacherOffice       varchar(40),
+   TeacherDept         int not null,
+   TeacherPassword         varchar(18) BINARY not null default '111111' ,
+   TeacherSex         char(1) not null,
+   TeacherTitle         varchar(40),/*职称*/
+   TeacherPoliticalRole         varchar(40),/*政治面貌*/
+   TeacherNational     varchar(4),/*民族*/
+   TeacherSignDate     date,/*入职时间*/
+   primary key (TeacherId)
+);
+
+/*==============================================================*/
+/* Table: Admin                                               */
+/*==============================================================*/
+create table Admin
+(
+   AdminId           varchar(5) not null,
+   AdminPassword         varchar(18) BINARY not null default '111111' ,
+   AdminPhone        char(11),
+   AdminOffice       varchar(40),
+   primary key (AdminId)
+);
+
+/*==============================================================*/
+/* Table: CourseTime                                              */
+/*==============================================================*/
+create table CourseTime
+(
+   CourseTimeId           char(7) not null,
+   CourseTimeWeek     int not null,
+   CourseTimeClass      int not null,
+   primary key (CourseTimeId,CourseTimeWeek,CourseTimeClass)
+);
+
+/*==============================================================*/
+/* Table: State                                              */
+/*==============================================================*/
+create table State
+(
+   AllowSelectCourse           tinyint(1) not null,
+   AllowInputScore           tinyint(1) not null,
+   primary key (AllowSelectCourse,AllowInputScore)
+);
+
+/*创建约束部分*/
+
+alter table Course add constraint FK_CDept foreign key (CourseDept)
+      references Department (DepartmentNo) on delete restrict on update restrict;
+
+/*alter table Course
+      add constraint coursepointcheck CHECK(CoursePoint>=0 AND MOD(CoursePoint,0.5)=0);*/
+
+alter table Course add constraint FK_CTId foreign key (CourseTeacherId)
+      references Teacher (TeacherId) on delete restrict on update restrict;
+
+alter table SelectCourse add constraint FK_SCCid foreign key (SelectCourseCid)
+      references Course (CourseId) on delete cascade on update cascade;
+
+alter table SelectCourse add constraint FK_SCSid foreign key (SelectCourseSid)
+      references Student (StudentId) on delete cascade on update cascade;
+
+/*alter table SelectCourse
+      add constraint scorecheck CHECK (SelectCourseScore BETWEEN 0 AND 100);*/
+
+alter table Student add constraint FK_SDept foreign key (StudentDept)
+      references Department (DepartmentNo) on delete restrict on update restrict;
+
+/*alter table Student
+      add constraint studentsexcheck CHECK (StudentSex IN('男','女'));
+
+alter table Student
+      add constraint studentpswdcheck CHECK(len(StudentPassword)>=6);*/
+
+alter table Teacher add constraint FK_TDept foreign key (TeacherDept)
+      references Department (DepartmentNo) on delete restrict on update restrict;
+
+/*alter table Teacher
+      add constraint teacherpswdcheck CHECK(len(TeacherPassword)>=6);
+
+alter table Teacher
+      add constraint teachersexcheck CHECK(TeacherSex IN('男','女'));*/
+
+alter table CourseTime add constraint FK_CTCId foreign key (CourseTimeId)
+      references Course (CourseId) on delete cascade on update cascade;
+
+/*创建索引部分*/
+
+ALTER TABLE course ADD INDEX index_courseteacher (CourseTeacherId);
+
+ALTER TABLE coursetime ADD INDEX index_ctimecourseid (CourseTimeId ASC);
+
+/*ALTER TABLE selectcourse ADD INDEX index_sccourseid (SelectCourseCid ASC);
+
+ALTER TABLE selectcourse ADD INDEX index_scstudentid (SelectCourseSid ASC);*/
+/*放入结束选课的存储过程*/
+
+/*创建视图部分*/
+
+DROP FUNCTION IF EXISTS func_getcourseclasschar;
+CREATE FUNCTION func_getcourseclasschar(in_courseid char(7),in_week INT)/*返回上课时间字符串的一部分*/
+RETURNS VARCHAR(23)
+BEGIN
+	DECLARE tempclass INT;
+	DECLARE returnchar VARCHAR(23) DEFAULT NULL;
+	DECLARE val INT DEFAULT 0;
+	DECLARE selectclass CURSOR FOR
+		SELECT CourseTimeClass
+		FROM coursetime
+		WHERE CourseTimeId=in_courseid AND CourseTimeWeek=in_week;
+	DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET val=1;
+	OPEN selectclass;
+	FETCH selectclass INTO tempclass;
+	WHILE val=0
+		DO
+			SET returnchar=CONCAT_WS(',',returnchar,tempclass);
+			FETCH selectclass INTO tempclass;
+	END WHILE;
+	CLOSE selectclass;
+	SET returnchar=CONCAT('第',returnchar,'节');
+	RETURN returnchar;
+END;
+
+DROP FUNCTION IF EXISTS func_getcoursetimechar;
+CREATE FUNCTION func_getcoursetimechar(in_courseid char(7))/*返回一串表示上课时间的字符串*/
+RETURNS VARCHAR(255)
+BEGIN
+	DECLARE f_tempweek INT;
+	DECLARE f_tempstring VARCHAR(10) DEFAULT '';
+	DECLARE f_returnstring VARCHAR(255) DEFAULT '';
+	DECLARE val INT DEFAULT 0;
+	DECLARE selectweeks CURSOR FOR
+		SELECT 
+			CASE CourseTimeWeek
+				WHEN 1 THEN '星期一'
+				WHEN 2 THEN '星期二'
+				WHEN 3 THEN '星期三'
+				WHEN 4 THEN '星期四'
+				WHEN 5 THEN '星期五'
+				WHEN 6 THEN '星期六'
+				ELSE '星期日'
+			END,CourseTimeWeek
+		FROM coursetime
+		WHERE CourseTimeId=in_courseid
+		GROUP BY CourseTimeWeek;
+	DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET val=1;
+	OPEN selectweeks;
+	FETCH selectweeks INTO f_tempstring,f_tempweek;
+	WHILE val=0
+		DO
+			SET f_returnstring=CONCAT(f_returnstring,' | ',f_tempstring,' ',func_getcourseclasschar(in_courseid,f_tempweek));
+			FETCH selectweeks INTO f_tempstring,f_tempweek;
+		END WHILE;
+	CLOSE selectweeks;
+	SET f_returnstring=TRIM(LEADING ' | ' FROM f_returnstring);
+	RETURN f_returnstring;
+END;
+
+DROP FUNCTION IF EXISTS func_returndeptname;
+CREATE FUNCTION func_returndeptname (p_deptid INT)/*根据传入的院系号返回院系名，用于查询*/
+RETURNS VARCHAR(40)
+BEGIN
+	DECLARE returnchar VARCHAR(40);
+	SET returnchar=(SELECT DepartmentName FROM department WHERE department.DepartmentNo=p_deptid);
+  RETURN returnchar;
+END;
+
+DROP FUNCTION IF EXISTS func_returncourseremain;
+CREATE FUNCTION func_returncourseremain (p_courseid char(7))/*返回剩余课程量*/
+RETURNS INT
+BEGIN
+	DECLARE returnint INT;
+	DECLARE coursecap INT;
+	SET returnint=(SELECT COUNT(*) FROM selectcourse WHERE selectcourse.SelectCourseCid=p_courseid);
+	SET coursecap=(SELECT course.CourseCapacity FROM course WHERE course.CourseId=p_courseid);
+	SET returnint=coursecap-returnint;
+	RETURN returnint;
+END;
+
+DROP VIEW IF EXISTS SelectCourseView;
+CREATE VIEW SelectCourseView (CourseId,CourseName,CourseRemain,CoursePoint,CourseCapacity,CourseAddress,TeacherName,TeacherId,CourseDept)
+AS
+SELECT Course.CourseId,Course.CourseName,func_returncourseremain(course.CourseId),Course.CoursePoint,Course.CourseCapacity,Course.CourseAddress,Teacher.TeacherName,Teacher.TeacherId,Course.CourseDept
+FROM Course,Teacher
+WHERE Course.CourseTeacherId=Teacher.TeacherId;
+
+DROP VIEW IF EXISTS TeacherNamed;
+CREATE VIEW TeacherNamed(CourseId,CourseName,TeacherId,StudentId,StudentName,StudentSex,Score)
+AS
+SELECT Course.CourseId,Course.CourseName,Course.CourseTeacherId,Student.StudentId,Student.StudentName,Student.StudentSex,SelectCourse.SelectCourseScore
+FROM Course,SelectCourse,Student
+WHERE Course.CourseId=SelectCourse.SelectCourseCId AND Student.StudentId=SelectCourse.SelectCourseSId;
+
+DROP VIEW IF EXISTS CourseTable;
+CREATE VIEW CourseTable (CourseId,CourseName,CourseAddress,Week,Class,StudentId,TeacherName,TeacherId,CourseTimeChar)
+AS
+SELECT Course.CourseId,Course.CourseName,Course.CourseAddress,CourseTime.CourseTimeWeek,CourseTime.CourseTimeClass,SelectCourse.SelectCourseSid,Teacher.TeacherName,Teacher.TeacherId,func_getcoursetimechar(CourseId)
+FROM Course,SelectCourse,Teacher,CourseTime
+WHERE Course.CourseId=SelectCourse.SelectCourseCId AND Course.CourseId=CourseTime.CourseTimeId AND Course.CourseTeacherId=Teacher.TeacherId;
+
+/*创建触发器部分*/
+
+CREATE TRIGGER studentidlength_incheck BEFORE INSERT
+ON student FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF LENGTH(NEW.StudentId)<>12
+	THEN
+		SET msg = CONCAT('您输入的学号：',NEW.StudentId,' 为无效的学号，请输入12位有效学号。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER StudentSex_incheck BEFORE INSERT
+ON student FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100);
+  IF (new.StudentSex!='男' AND new.StudentSex!='女')
+THEN
+ SET msg = CONCAT('您输入的性别：',NEW.StudentSex,' 错误。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER StudentSex_upcheck BEFORE UPDATE
+ON student FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100);
+  IF (new.StudentSex!='男' AND new.StudentSex!='女')
+THEN
+ SET msg = CONCAT('您修改的性别：',NEW.StudentSex,' 错误。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER studentpass_updatecheck BEFORE UPDATE
+ON student FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100);
+  IF LENGTH(NEW.StudentPassword)<6 
+THEN
+ SET msg = CONCAT('您修改的密码：',NEW.StudentPassword,' 为无效的密码，请输入6-18位有效密码。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER studentpass_incheck BEFORE INSERT
+ON student FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100);
+  IF LENGTH(NEW.StudentPassword)<6
+THEN
+ SET msg = CONCAT('您设定的密码：',NEW.StudentPassword,' 为无效的密码，请输入6-18位有效密码。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER studentidnum_check BEFORE INSERT
+ON student FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100);
+  IF new.StudentId REGEXP '[^0-9.]'
+THEN
+ SET msg = CONCAT('您输入的学号：',NEW.StudentId,' 为无效的学号，请输入12位有效学号。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER departmentNo_incheck BEFORE INSERT
+ON department FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF NEW.DepartmentNo>99 OR NEW.DepartmentNo<0
+	THEN
+		SET msg = CONCAT('您输入的学院号：',NEW.DepartmentNo,' 为无效的。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER departmentNo_upcheck BEFORE UPDATE
+ON department FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF NEW.DepartmentNo>99 OR NEW.DepartmentNo<0
+	THEN
+		SET msg = CONCAT('您输入的学院号：',NEW.DepartmentNo,' 为无效的。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER courseid_incheck BEFORE INSERT
+ON course FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF LENGTH(NEW.CourseId)<>7
+	THEN
+		SET msg = CONCAT('您输入的课程号：',NEW.CourseId,' 为无效的课程号，请输入7位有效课程号。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER courseid_upcheck BEFORE UPDATE
+ON course FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF LENGTH(NEW.CourseId)<>7
+	THEN
+		SET msg = CONCAT('您修改的课程号：',NEW.CourseId,' 为无效的课程号，请输入7位有效课程号。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER courseidnum_upcheck BEFORE UPDATE
+ON course FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF new.CourseId REGEXP '[^0-9.]'
+	THEN
+		SET msg = CONCAT('您修改的课程号：',NEW.CourseId,' 为无效的课程号，请输入7位有效课程号。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER courseidnum_incheck BEFORE INSERT
+ON course FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF new.CourseId REGEXP '[^0-9.]'
+	THEN
+		SET msg = CONCAT('您输入的课程号：',NEW.CourseId,' 为无效的课程号，请输入7位有效课程号。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER coursepoint_upcheck BEFORE UPDATE
+ON course FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF MOD(NEW.CoursePoint,0.5)<>0
+	THEN
+		SET msg = CONCAT('您设定的学分：',NEW.CoursePoint,' 不符合要求');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER coursepoint_incheck BEFORE INSERT
+ON course FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF MOD(NEW.CoursePoint,0.5)<>0
+	THEN
+		SET msg = CONCAT('您设定的学分：',NEW.CoursePoint,' 不符合要求');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER SelectCourseScore_incheck BEFORE INSERT
+ON selectcourse FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF NEW.SelectCourseScore<0 OR NEW.SelectCourseScore>100
+	THEN
+		SET msg = CONCAT('您输入的成绩：',NEW.SelectCourseScore,'超出范围');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER SelectCourseScore_upcheck BEFORE UPDATE
+ON selectcourse FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF NEW.SelectCourseScore<0 OR NEW.SelectCourseScore>100
+	THEN
+		SET msg = CONCAT('您输入的成绩：',NEW.SelectCourseScore,'超出范围');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER teacherid_incheck BEFORE INSERT
+ON teacher FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF LENGTH(NEW.TeacherId)<>5
+	THEN
+		SET msg = CONCAT('您输入的教师号：',NEW.TeacherId,' 为无效的教师号，请输入5位有效教师号。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER teacheridnum_incheck BEFORE INSERT
+ON teacher FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF NEW.TeacherId REGEXP '[^0-9.]'
+	THEN
+		SET msg = CONCAT('您输入的教师号：',NEW.TeacherId,' 为无效的教师号，请输入5位有效教师号。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER teacherid_upcheck BEFORE UPDATE
+ON teacher FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF LENGTH(NEW.TeacherId)<>5
+	THEN
+		SET msg = CONCAT('您输入的教师号：',NEW.TeacherId,' 为无效的教师号，请输入5位有效教师号。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER teacheridnum_upcheck BEFORE UPDATE
+ON teacher FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF NEW.TeacherId REGEXP '[^0-9.]'
+	THEN
+		SET msg = CONCAT('您输入的教师号：',NEW.TeacherId,' 为无效的教师号，请输入5位有效教师号。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER teacherSex_incheck BEFORE INSERT
+ON teacher FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100);
+  IF (new.TeacherSex!='男' AND new.TeacherSex!='女')
+THEN
+ SET msg = CONCAT('您输入的性别：',NEW.TeacherSex,' 错误。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER teacherSex_upcheck BEFORE UPDATE
+ON teacher FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100);
+  IF (new.TeacherSex!='男' AND new.TeacherSex!='女')
+THEN
+ SET msg = CONCAT('您修改的性别：',NEW.TeacherSex,' 错误。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER teacherpass_upcheck BEFORE UPDATE
+ON teacher FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100);
+  IF LENGTH(NEW.TeacherPassword)<6
+THEN
+ SET msg = CONCAT('您修改的密码：',new.TeacherPassword,' 为无效的密码，请输入6-18位有效密码。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER teacherpass_incheck BEFORE INSERT
+ON teacher FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100);
+  IF LENGTH(NEW.TeacherPassword)<6
+THEN
+ SET msg = CONCAT('您输入的密码：',new.TeacherPassword,' 为无效的密码，请输入6-18位有效密码。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER adminid_incheck BEFORE INSERT
+ON admin FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF LENGTH(NEW.AdminId)>5
+	THEN
+		SET msg = CONCAT('您输入的管理员账号：',NEW.AdminId,' 为无效的，请输入不大于5位管理员账号。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER adminpass_upcheck BEFORE UPDATE
+ON admin FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100);
+  IF LENGTH(NEW.AdminPassword)<6
+THEN
+ SET msg = CONCAT('您修改的密码：',new.AdminPassword,' 为无效的密码，请输入6-18位有效密码。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER adminpass_incheck BEFORE INSERT
+ON admin FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100);
+  IF LENGTH(NEW.AdminPassword)<6
+THEN
+ SET msg = CONCAT('您输入的密码：',new.AdminPassword,' 为无效的密码，请输入6-18位有效密码。');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER coursetimeweek_upcheck BEFORE UPDATE
+ON coursetime FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF NEW.CourseTimeWeek<1 OR NEW.CourseTimeWeek>7
+	THEN
+		SET msg = CONCAT('您输入的周',NEW.CourseTimeWeek,'超出范围');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER coursetimeweek_incheck BEFORE INSERT
+ON coursetime FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF NEW.CourseTimeWeek<1 OR NEW.CourseTimeWeek>7
+	THEN
+		SET msg = CONCAT('您输入的周',NEW.CourseTimeWeek,'超出范围');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER coursetimeclass_incheck BEFORE INSERT
+ON coursetime FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF NEW.CourseTimeClass<1 OR NEW.CourseTimeClass>10
+	THEN
+		SET msg = CONCAT('您输入的节数：',NEW.CourseTimeClass,'超出范围');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+CREATE TRIGGER coursetimeclass_upcheck BEFORE UPDATE
+ON coursetime FOR EACH ROW
+BEGIN
+	DECLARE msg varchar(100); 
+	IF NEW.CourseTimeClass<1 OR NEW.CourseTimeClass>10
+	THEN
+		SET msg = CONCAT('您修改的节数：',NEW.CourseTimeClass,'超出范围');
+		SIGNAL SQLSTATE 'HY000' SET MESSAGE_TEXT = msg;
+	END IF;
+END;
+
+/*创建函数部分*/
+
+/*CREATE FUNCTION averagescore(courseid char(20)) 
+	RETURNS int
+	AS
+	BEGIN
+		DECLARE @averscore int
+		SELECT @averscore=
+		( 
+			SELECT avg(SelectCourseScore) 
+				FROM selectcourse
+				WHERE SelectCourseCId=courseid
+				GROUP BY SelectCourseCId
+		)
+		RETURN @aver
+	END*/
+
+DROP FUNCTION IF EXISTS func_checkcoursetime;
+CREATE FUNCTION func_checkcoursetime (p_week INT,p_class INT,p_studentid char(12))/*检查要选的课程和已选课程是否有时间冲突*/
+RETURNS INT
+BEGIN
+	DECLARE tmp_week INT;
+	DECLARE tmp_class INT;
+	DECLARE val INT DEFAULT 0;
+	DECLARE c_selectedcourse CURSOR FOR
+		SELECT coursetime.CourseTimeWeek,coursetime.CourseTimeClass 
+		FROM coursetime,selectcourse 
+		WHERE selectcourse.SelectCourseSid=p_studentid AND selectcourse.SelectCourseCid=coursetime.CourseTimeId;
+	DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET val=-1;
+	OPEN c_selectedcourse;
+	FETCH FROM c_selectedcourse INTO tmp_week,tmp_class;
+	WHILE val!=-1 
+		DO
+			IF tmp_week=p_week AND tmp_class=p_class 
+				THEN
+					CLOSE c_selectedcourse;
+					RETURN 1;
+				END IF;
+			FETCH FROM c_selectedcourse INTO tmp_week,tmp_class;
+		END WHILE;
+	CLOSE c_selectedcourse;
+	RETURN 0;
+END;
+
+DROP FUNCTION IF EXISTS func_selectcourse;
+CREATE FUNCTION func_selectcourse (p_studentid char(12),p_courseid char(7))/*选课函数，选课时会检测各种限制条件（详见表结构文件）*/
+RETURNS INT
+BEGIN
+	DECLARE p_repeatselect INT;
+	DECLARE p_coursepoint FLOAT;
+	DECLARE p_courseremain INT;
+	DECLARE p_week INT;
+	DECLARE p_class INT;
+	DECLARE val INT DEFAULT 0;
+	DECLARE requestcoursetime CURSOR FOR
+		SELECT coursetime.CourseTimeWeek,coursetime.CourseTimeClass 
+		FROM coursetime
+		WHERE coursetime.CourseTimeId=p_courseid;
+	DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET val=-2;
+	SELECT COUNT(*)INTO p_repeatselect FROM selectcourse WHERE selectcourse.SelectCourseSid=p_studentid AND selectcourse.SelectCourseCid=p_courseid;
+	IF p_coursecount<>0 THEN 
+		RETURN 1;
+	END IF;
+	SELECT SUM(course.CoursePoint)INTO p_coursepoint FROM course,selectcourse WHERE course.CourseId=selectcourse.SelectCourseCid AND selectcourse.SelectCourseSid=p_studentid;
+	SET p_coursepoint=p_coursepoint+(SELECT course.CoursePoint FROM course WHERE course.CourseId=p_courseid);
+	IF p_coursepoint>18 THEN
+		RETURN 2;
+	END IF;
+	OPEN requestcoursetime;
+	FETCH requestcoursetime INTO p_week,p_class;
+	WHILE val!=-2
+		DO
+			IF func_checkcoursetime(p_week,p_class,p_studentid)!=0
+				THEN
+					CLOSE requestcoursetime;
+					RETURN 3;
+				END IF;
+			FETCH requestcoursetime INTO p_week,p_class;
+		END WHILE;
+	CLOSE requestcoursetime;
+	SET p_courseremain=func_returncourseremain(p_courseid);
+	IF p_courseremain<=0
+		THEN
+			RETURN 4;
+	END IF;
+	INSERT INTO selectcourse(SelectCourseSid,SelectCourseCid) VALUES (p_studentid,p_courseid);
+RETURN 0;
+END;
+
+DROP FUNCTION IF EXISTS func_getcourseclasschar;
+CREATE FUNCTION func_getcourseclasschar(in_courseid char(7),in_week INT)/*返回上课时间字符串的一部分*/
+RETURNS VARCHAR(23)
+BEGIN
+	DECLARE tempclass INT;
+	DECLARE returnchar VARCHAR(23) DEFAULT NULL;
+	DECLARE val INT DEFAULT 0;
+	DECLARE selectclass CURSOR FOR
+		SELECT CourseTimeClass
+		FROM coursetime
+		WHERE CourseTimeId=in_courseid AND CourseTimeWeek=in_week;
+	DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET val=1;
+	OPEN selectclass;
+	FETCH selectclass INTO tempclass;
+	WHILE val=0
+		DO
+			SET returnchar=CONCAT_WS(',',returnchar,tempclass);
+			FETCH selectclass INTO tempclass;
+	END WHILE;
+	CLOSE selectclass;
+	SET returnchar=CONCAT('第',returnchar,'节');
+	RETURN returnchar;
+END;
+
+DROP FUNCTION IF EXISTS func_getcoursetimechar;
+CREATE FUNCTION func_getcoursetimechar(in_courseid char(7))/*返回一串表示上课时间的字符串*/
+RETURNS VARCHAR(255)
+BEGIN
+	DECLARE f_tempweek INT;
+	DECLARE f_tempstring VARCHAR(10) DEFAULT '';
+	DECLARE f_returnstring VARCHAR(255) DEFAULT '';
+	DECLARE val INT DEFAULT 0;
+	DECLARE selectweeks CURSOR FOR
+		SELECT 
+			CASE CourseTimeWeek
+				WHEN 1 THEN '星期一'
+				WHEN 2 THEN '星期二'
+				WHEN 3 THEN '星期三'
+				WHEN 4 THEN '星期四'
+				WHEN 5 THEN '星期五'
+				WHEN 6 THEN '星期六'
+				ELSE '星期日'
+			END,CourseTimeWeek
+		FROM coursetime
+		WHERE CourseTimeId=in_courseid
+		GROUP BY CourseTimeWeek;
+	DECLARE CONTINUE HANDLER FOR SQLSTATE '02000' SET val=1;
+	OPEN selectweeks;
+	FETCH selectweeks INTO f_tempstring,f_tempweek;
+	WHILE val=0
+		DO
+			SET f_returnstring=CONCAT(f_returnstring,' | ',f_tempstring,' ',func_getcourseclasschar(in_courseid,f_tempweek));
+			FETCH selectweeks INTO f_tempstring,f_tempweek;
+		END WHILE;
+	CLOSE selectweeks;
+	SET f_returnstring=TRIM(LEADING ' | ' FROM f_returnstring);
+	RETURN f_returnstring;
+END;
+
+DROP FUNCTION IF EXISTS func_returndeptname;
+CREATE FUNCTION func_returndeptname (p_deptid INT)/*根据传入的院系号返回院系名，用于查询*/
+RETURNS VARCHAR(40)
+BEGIN
+	DECLARE returnchar VARCHAR(40);
+	SET returnchar=(SELECT DepartmentName FROM department WHERE department.DepartmentNo=p_deptid);
+  RETURN returnchar;
+END;
+
+DROP FUNCTION IF EXISTS func_returncourseremain;
+CREATE FUNCTION func_returncourseremain (p_courseid char(7))/*返回剩余课程量*/
+RETURNS INT
+BEGIN
+	DECLARE returnint INT;
+	DECLARE coursecap INT;
+	SET returnint=(SELECT COUNT(*) FROM selectcourse WHERE selectcourse.SelectCourseCid=p_courseid);
+	SET coursecap=(SELECT course.CourseCapacity FROM course WHERE course.CourseId=p_courseid);
+	SET returnint=coursecap-returnint;
+	RETURN returnint;
+END;
+
+/*创建存储过程部分*/
+
+/*DROP PROCEDURE IF EXISTS prc_studentselectedcoursetime;
+CREATE PROCEDURE prc_studentselectedcoursetime(p_studentid char(12))
+BEGIN
+	SELECT coursetime.CourseTimeWeek,coursetime.CourseTimeClass
+	FROM coursetime,selectcourse
+	WHERE selectcourse.SelectCourseSid=p_studentid AND selectcourse.SelectCourseCid=coursetime.CourseTimeId;
+END;*/
+/*CALL prc_studentselectedcoursetime(201711111111);*/
+
+DROP PROCEDURE IF EXISTS prc_beginselectcourse;
+CREATE PROCEDURE prc_beginselectcourse()
+BEGIN
+	GRANT INSERT ON studentselectcourse.selectcourse TO 'student';
+	GRANT DELETE ON studentselectcourse.selectcourse TO 'student';
+	GRANT EXECUTE ON studentselectcourse.func_selectcourse TO 'student';
+	UPDATE state SET AllowSelectCourse=1;
+END;
+
+DROP PROCEDURE IF EXISTS prc_endselectcourse;
+CREATE PROCEDURE prc_endselectcourse()
+BEGIN
+	REVOKE INSERT ON studentselectcourse.selectcourse FROM 'student';
+	REVOKE DELETE ON studentselectcourse.selectcourse FROM 'student';
+	UPDATE state SET AllowSelectCourse=0;
+	ALTER TABLE selectcourse ADD INDEX index_sccourseid (SelectCourseCid ASC);
+	ALTER TABLE selectcourse ADD INDEX index_scstudentid (SelectCourseSid ASC);
+END;
+
+DROP PROCEDURE IF EXISTS prc_begininputscore;
+CREATE PROCEDURE prc_begininputscore()
+BEGIN
+	GRANT UPDATE(SelectCourseScore) ON studentselectcourse.selectcourse TO 'teacher';
+	UPDATE state SET AllowInputScore=1;
+END;
+
+DROP PROCEDURE IF EXISTS prc_endinputscore;
+CREATE PROCEDURE prc_endinputscore()
+BEGIN
+	REVOKE UPDATE(SelectCourseScore) ON studentselectcourse.selectcourse FROM 'teacher';
+	UPDATE state SET AllowInputScore=0;
+END;
+
+/*权限管理部分（数据库名称studentselectcourse）*/
+CREATE USER 'admin' IDENTIFIED by '111111';/*创建管理员*/
+
+GRANT ALL ON studentselectcourse.* TO 'admin';/*授权*/
+
+
+CREATE USER 'student' IDENTIFIED by '666666';/*创建学生*/
+
+GRANT SELECT ON studentselectcourse.course TO 'student';
+GRANT SELECT ON studentselectcourse.department TO 'student';
+GRANT SELECT ON studentselectcourse.selectcourse TO 'student';
+GRANT SELECT ON studentselectcourse.student TO 'student';
+GRANT UPDATE(StudentPassword) ON studentselectcourse.student TO 'student';
+GRANT SELECT(TeacherId,TeacherName,TeacherPhone,TeacherOffice,TeacherDept,TeacherSex) ON studentselectcourse.teacher TO 'student';
+GRANT SELECT(AdminId,AdminPhone,AdminOffice)ON studentselectcourse.admin TO 'student';
+GRANT SELECT ON studentselectcourse.coursetime TO 'student';
+GRANT SELECT ON studentselectcourse.state TO 'student';
+GRANT SELECT ON studentselectcourse.selectcourseview TO 'student';
+GRANT SELECT ON studentselectcourse.coursetable TO 'student';
+GRANT EXECUTE ON studentselectcourse.* TO 'student';
+
+
+CREATE USER 'teacher' IDENTIFIED by '111111';/*创建教师*/
+
+GRANT SELECT ON studentselectcourse.course TO 'teacher';
+GRANT SELECT ON studentselectcourse.department TO 'teacher';
+GRANT SELECT ON studentselectcourse.selectcourse TO 'teacher';
+GRANT SELECT(StudentId,StudentName,StudentDept,StudentSex,StudentNational,StudentSignYear,StudentMajor,StudentBirthday) ON studentselectcourse.student TO 'teacher';
+GRANT SELECT ON studentselectcourse.teacher TO 'teacher';
+GRANT SELECT(AdminId,AdminPhone,AdminOffice) ON studentselectcourse.admin TO 'teacher';
+GRANT SELECT ON studentselectcourse.coursetime TO 'teacher';
+GRANT SELECT ON studentselectcourse.state TO 'teacher';
+GRANT SELECT ON studentselectcourse.teachernamed TO 'teacher';
+GRANT SELECT ON studentselectcourse.coursetable TO 'teacher';
+GRANT UPDATE(TeacherPassword) ON studentselectcourse.teacher TO 'teacher';
+GRANT EXECUTE ON studentselectcourse.* TO 'teacher';
+
+
+/*备份还原部分使用了mysqldump命令，在操作系统层面实现，定时每天0：00备份并保留近5天的备份文件（bat文件中有路径待改）（后缀sql）*/
+/*还原则需调用mysql命令，或在navicat中直接‘运行sql文件’*/
+
+/*常用命令：
+SELECT * FROM information_schema.TRIGGERS;
+
+
+CREATE ROLE IF NOT EXISTS 'role_student','role_teacher','role_admin';
+GRANT ALL ON zsfg.* TO role_admin;5.7不可用
+
+SHOW GRANTS FOR 'XXX';
+
+
+创建不同的数据库角色
+
+
+
+SET PASSWORD = password('bla');用户自己修改密码
+
+
+SELECT user,host from mysql.user;查看用户信息
+
+delete from mysql.user where user='';删除匿名用户
+
+FLUSH PRIVILEGES;刷新用户授权表
+CREATE USER '12345' IDENTIFIED by '111111';创建管理员
+GRANT ALL ON zsfg.* TO '12345';授权
+GRANT 'role_admin' TO '12345'@'%';授权（无效，不支持角色）
+
+
+mysql -u 用户 -p<回车>输入密码
+
+
+
+
+*/
